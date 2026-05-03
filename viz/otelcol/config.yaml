@@ -1,0 +1,74 @@
+# OpenTelemetry Collector configuration for OmniAgent
+#
+# Receives: OTLP HTTP from OmniAgent on :4318
+# Exports:  Metrics → Prometheus exporter (:8889)
+#           Logs    → Loki (:3100)
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "0.0.0.0:4318"
+        # OmniAgent sends Content-Encoding: zstd — the OTel Collector
+        # handles decompression automatically.
+      grpc:
+        endpoint: "0.0.0.0:4317"
+
+processors:
+  # Add hostname label to every metric/log
+  resource:
+    attributes:
+      - action: insert
+        key: service.name
+        value: omniagent
+
+  # Batch before export for efficiency
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+  # Drop records that exceed memory threshold
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+    spike_limit_mib: 64
+
+exporters:
+  # Metrics → Prometheus (Grafana scrapes this)
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: omniagent
+    const_labels:
+      collector: otelcol
+
+  # Logs → Loki
+  loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+    default_labels_enabled:
+      exporter: true
+      job: true
+      instance: true
+      level: true
+
+  # Debug — print to collector stdout (disable in production)
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 50
+
+service:
+  pipelines:
+    metrics:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [prometheus, debug]
+
+    logs:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [loki, debug]
+
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [debug]

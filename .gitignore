@@ -1,0 +1,30 @@
+# Build artifacts
+/build/
+/omniagent
+/omniagent-static
+/omniagent-debug
+
+# Deploy script generated config
+/etc/omniagent.conf
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Grafana/Prometheus/Loki data (Docker volumes, if bind-mounted locally)
+viz/grafana_data/
+viz/prometheus_data/
+viz/loki_data/
+
+# Compiled object files (already under build/ but be explicit)
+*.o
+*.a
+*.so
+
+# Tags
+tags
+TAGS

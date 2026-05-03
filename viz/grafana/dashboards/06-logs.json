@@ -1,0 +1,223 @@
+{
+  "uid": "omniagent-logs",
+  "title": "OmniAgent — Logs",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": {"type": "loki", "uid": "loki"},
+        "definition": "label_values(job=\"omniagent\",host)",
+        "query": {
+          "label": "host",
+          "refId": "A",
+          "stream": "{job=\"omniagent\"}",
+          "type": "labelValues"
+        },
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "query": "trace,info,error",
+        "options": [
+          {"text": "All",   "value": "$__all"},
+          {"text": "trace", "value": "trace"},
+          {"text": "info",  "value": "info"},
+          {"text": "error", "value": "error"}
+        ],
+        "current": {"text": "All", "value": "$__all"},
+        "multi": true,
+        "includeAll": true,
+        "allValue": "trace|info|error"
+      },
+      {
+        "name": "source",
+        "label": "Source File",
+        "type": "custom",
+        "query": "/var/log/syslog,/var/log/kern.log,/var/log/auth.log",
+        "options": [
+          {"text": "All",               "value": "$__all"},
+          {"text": "syslog",            "value": "/var/log/syslog"},
+          {"text": "kern.log",          "value": "/var/log/kern.log"},
+          {"text": "auth.log",          "value": "/var/log/auth.log"}
+        ],
+        "current": {"text": "All", "value": "$__all"},
+        "multi": false,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Errors (1h)",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "reduceOptions": {"calcs": ["sum"]},
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[error\\\\]\" [1h])",
+          "legendFormat": "errors",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Info (1h)",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "reduceOptions": {"calcs": ["sum"]},
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": 0}]}
+        }
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[info\\\\]\" [1h])",
+          "legendFormat": "info",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Total Logs (1h)",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "reduceOptions": {"calcs": ["sum"]},
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "text", "value": 0}]}
+        }
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} [1h])",
+          "legendFormat": "total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Log Volume by Level (per minute)",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {"fillOpacity": 20, "lineWidth": 2}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "error"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "info"},  "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "trace"}, "properties": [{"id": "color", "value": {"fixedColor": "grey", "mode": "fixed"}}]}
+        ]
+      },
+      "targets": [
+        {"expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[error\\\\]\" [1m])", "legendFormat": "error", "refId": "A"},
+        {"expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[info\\\\]\"  [1m])", "legendFormat": "info",  "refId": "B"},
+        {"expr": "count_over_time({job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[trace\\\\]\" [1m])", "legendFormat": "trace", "refId": "C"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Log Stream — host=$host  level=$level  source=$source",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 22},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "targets": [
+        {
+          "expr": "{job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[($level)\\\\]\" |~ \"$source\"",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 500
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Errors Only",
+      "gridPos": {"x": 0, "y": 26, "w": 24, "h": 10},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"omniagent\",host=~\"$host\"} |~ \"^\\\\[error\\\\]\"",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 200
+        }
+      ]
+    }
+  ]
+}

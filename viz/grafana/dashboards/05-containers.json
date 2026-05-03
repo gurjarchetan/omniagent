@@ -1,0 +1,134 @@
+{
+  "uid": "omniagent-containers",
+  "title": "OmniAgent — Containers",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_container_cpu_utilization, host)",
+        "query": {"query": "label_values(omniagent_container_cpu_utilization, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      },
+      {
+        "name": "container", "label": "Container", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_container_cpu_utilization{host=\"$host\"}, container_name)",
+        "query": {"query": "label_values(omniagent_container_cpu_utilization{host=\"$host\"}, container_name)", "refId": "A"},
+        "refresh": 2, "multi": true, "includeAll": true, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "CPU", "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1}, "collapsed": false
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Container CPU Usage % ($container)",
+      "gridPos": {"x": 0, "y": 1, "w": 16, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"expr": "omniagent_container_cpu_utilization{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 3, "type": "bargauge", "title": "CPU % Now",
+      "gridPos": {"x": 16, "y": 1, "w": 8, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 50}, {"color": "red", "value": 80}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "horizontal"},
+      "targets": [
+        {"expr": "omniagent_container_cpu_utilization{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 4, "type": "row", "title": "Memory", "gridPos": {"x": 0, "y": 9, "w": 24, "h": 1}, "collapsed": false
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Container Memory Usage ($container)",
+      "gridPos": {"x": 0, "y": 10, "w": 16, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_container_memory_usage{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}} used", "refId": "A"},
+        {"expr": "omniagent_container_memory_limit{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}} limit", "refId": "B"}
+      ]
+    },
+    {
+      "id": 6, "type": "gauge", "title": "Memory Utilization % Now",
+      "gridPos": {"x": 16, "y": 10, "w": 8, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "omniagent_container_memory_utilization{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Container RSS & Cache ($container)",
+      "gridPos": {"x": 0, "y": 18, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_container_memory_rss{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}} RSS", "refId": "A"},
+        {"expr": "omniagent_container_memory_cache{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}} Cache", "refId": "B"}
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "CPU Throttle %",
+      "gridPos": {"x": 12, "y": 18, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"expr": "rate(omniagent_container_cpu_throttled_periods{host=\"$host\",container_name=~\"$container\"}[5m])", "legendFormat": "{{container_name}} throttled", "refId": "A"}
+      ]
+    },
+    {
+      "id": 9, "type": "row", "title": "Network", "gridPos": {"x": 0, "y": 26, "w": 24, "h": 1}, "collapsed": false
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Container Network I/O ($container)",
+      "gridPos": {"x": 0, "y": 27, "w": 24, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"expr": "rate(omniagent_container_network_io{host=\"$host\",container_name=~\"$container\",direction=\"receive\"}[5m])", "legendFormat": "RX {{container_name}}", "refId": "A"},
+        {"expr": "-rate(omniagent_container_network_io{host=\"$host\",container_name=~\"$container\",direction=\"transmit\"}[5m])", "legendFormat": "TX {{container_name}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 11, "type": "row", "title": "Disk", "gridPos": {"x": 0, "y": 35, "w": 24, "h": 1}, "collapsed": false
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Container Disk I/O ($container)",
+      "gridPos": {"x": 0, "y": 36, "w": 24, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"expr": "rate(omniagent_container_disk_io{host=\"$host\",container_name=~\"$container\",direction=\"read\"}[5m])", "legendFormat": "Read {{container_name}}", "refId": "A"},
+        {"expr": "-rate(omniagent_container_disk_io{host=\"$host\",container_name=~\"$container\",direction=\"write\"}[5m])", "legendFormat": "Write {{container_name}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 13, "type": "stat", "title": "Container Restarts",
+      "gridPos": {"x": 0, "y": 44, "w": 12, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_container_restarts{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}}", "refId": "A"}]
+    },
+    {
+      "id": 14, "type": "stat", "title": "OOM Events",
+      "gridPos": {"x": 12, "y": 44, "w": 12, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "red", "value": 1}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_container_oom_events{host=\"$host\",container_name=~\"$container\"}", "legendFormat": "{{container_name}}", "refId": "A"}]
+    }
+  ]
+}

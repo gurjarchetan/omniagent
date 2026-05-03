@@ -1,0 +1,80 @@
+{
+  "uid": "omniagent-network",
+  "title": "OmniAgent — Network",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_network_io_rate, host)",
+        "query": {"query": "label_values(omniagent_system_network_io_rate, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      },
+      {
+        "name": "device", "label": "NIC", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_network_io_rate{host=\"$host\"}, device)",
+        "query": {"query": "label_values(omniagent_system_network_io_rate{host=\"$host\"}, device)", "refId": "A"},
+        "refresh": 2, "multi": true, "includeAll": true, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Network Throughput ($device)",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"expr": "omniagent_system_network_io_rate{host=\"$host\",device=~\"$device\",direction=\"receive\"}", "legendFormat": "RX {{device}}", "refId": "A"},
+        {"expr": "-omniagent_system_network_io_rate{host=\"$host\",device=~\"$device\",direction=\"transmit\"}", "legendFormat": "TX {{device}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Packets/s ($device)",
+      "gridPos": {"x": 0, "y": 9, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "pps"}},
+      "targets": [
+        {"expr": "rate(omniagent_system_network_packets{host=\"$host\",device=~\"$device\",direction=\"receive\"}[5m])", "legendFormat": "RX {{device}}", "refId": "A"},
+        {"expr": "-rate(omniagent_system_network_packets{host=\"$host\",device=~\"$device\",direction=\"transmit\"}[5m])", "legendFormat": "TX {{device}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Errors & Drops/s ($device)",
+      "gridPos": {"x": 12, "y": 9, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "pps"}},
+      "targets": [
+        {"expr": "rate(omniagent_system_network_errors{host=\"$host\",device=~\"$device\"}[5m])", "legendFormat": "Errors {{device}} {{direction}}", "refId": "A"},
+        {"expr": "rate(omniagent_system_network_dropped{host=\"$host\",device=~\"$device\"}[5m])", "legendFormat": "Drops {{device}} {{direction}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "TCP Connections",
+      "gridPos": {"x": 0, "y": 17, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "targets": [
+        {"expr": "omniagent_system_network_connections{host=\"$host\",protocol=\"tcp\"}", "legendFormat": "TCP", "refId": "A"},
+        {"expr": "omniagent_system_network_connections{host=\"$host\",protocol=\"udp\"}", "legendFormat": "UDP", "refId": "B"},
+        {"expr": "omniagent_system_network_tcp_tw{host=\"$host\"}", "legendFormat": "TIME_WAIT", "refId": "C"},
+        {"expr": "omniagent_system_network_tcp_orphan{host=\"$host\"}", "legendFormat": "Orphaned", "refId": "D"}
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Cumulative Bytes ($device)",
+      "gridPos": {"x": 12, "y": 17, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_network_io{host=\"$host\",device=~\"$device\",direction=\"receive\"}", "legendFormat": "RX {{device}}", "refId": "A"},
+        {"expr": "omniagent_system_network_io{host=\"$host\",device=~\"$device\",direction=\"transmit\"}", "legendFormat": "TX {{device}}", "refId": "B"}
+      ]
+    }
+  ]
+}

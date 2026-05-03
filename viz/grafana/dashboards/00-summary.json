@@ -1,0 +1,99 @@
+{
+  "uid": "omniagent-summary",
+  "title": "OmniAgent — Summary",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_cpu_usage, host)",
+        "query": {"query": "label_values(omniagent_system_cpu_usage, host)", "refId": "A"},
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "CPU Usage",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_cpu_usage{host=\"$host\",mode=\"total\"}", "legendFormat": "CPU", "refId": "A"}]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Memory Usage",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_memory_utilization{host=\"$host\"}", "legendFormat": "Memory", "refId": "A"}]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Load Average (1m)",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_load_1{host=\"$host\"}", "legendFormat": "Load 1m", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Uptime",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_uptime{host=\"$host\"}", "legendFormat": "Uptime", "refId": "A"}]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "CPU Over Time",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"expr": "omniagent_system_cpu_usage{host=\"$host\",mode=\"total\"}", "legendFormat": "CPU Total", "refId": "A"},
+        {"expr": "omniagent_system_cpu_iowait{host=\"$host\",mode=\"iowait\"}", "legendFormat": "IOWait", "refId": "B"}
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Memory Over Time",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_memory_usage{host=\"$host\"}", "legendFormat": "Used", "refId": "A"},
+        {"expr": "omniagent_system_memory_cached{host=\"$host\"}", "legendFormat": "Cached", "refId": "B"},
+        {"expr": "omniagent_system_memory_total{host=\"$host\"}", "legendFormat": "Total", "refId": "C"}
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Network I/O Rate",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"expr": "omniagent_system_network_io_rate{host=\"$host\",direction=\"receive\"}", "legendFormat": "RX {{device}}", "refId": "A"},
+        {"expr": "omniagent_system_network_io_rate{host=\"$host\",direction=\"transmit\"}", "legendFormat": "TX {{device}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Disk I/O Rate",
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"expr": "omniagent_system_disk_io_rate{host=\"$host\",direction=\"read\"}", "legendFormat": "Read {{device}}", "refId": "A"},
+        {"expr": "omniagent_system_disk_io_rate{host=\"$host\",direction=\"write\"}", "legendFormat": "Write {{device}}", "refId": "B"}
+      ]
+    }
+  ]
+}

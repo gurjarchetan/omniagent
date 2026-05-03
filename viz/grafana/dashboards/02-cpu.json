@@ -1,0 +1,101 @@
+{
+  "uid": "omniagent-cpu",
+  "title": "OmniAgent — CPU",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_cpu_usage, host)",
+        "query": {"query": "label_values(omniagent_system_cpu_usage, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      },
+      {
+        "name": "cpu", "label": "CPU Core", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_cpu_usage_percpu{host=\"$host\"}, cpu)",
+        "query": {"query": "label_values(omniagent_system_cpu_usage_percpu{host=\"$host\"}, cpu)", "refId": "A"},
+        "refresh": 2, "multi": true, "includeAll": true, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Aggregate CPU Usage by Mode",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "options": {"tooltip": {"mode": "multi"}, "stacking": {"mode": "normal"}},
+      "targets": [
+        {"expr": "omniagent_system_cpu_user{host=\"$host\",mode=\"user\"}", "legendFormat": "User", "refId": "A"},
+        {"expr": "omniagent_system_cpu_system{host=\"$host\",mode=\"system\"}", "legendFormat": "System", "refId": "B"},
+        {"expr": "omniagent_system_cpu_nice{host=\"$host\",mode=\"nice\"}", "legendFormat": "Nice", "refId": "C"},
+        {"expr": "omniagent_system_cpu_iowait{host=\"$host\",mode=\"iowait\"}", "legendFormat": "IOWait", "refId": "D"},
+        {"expr": "omniagent_system_cpu_irq{host=\"$host\",mode=\"irq\"}", "legendFormat": "IRQ", "refId": "E"},
+        {"expr": "omniagent_system_cpu_steal{host=\"$host\",mode=\"steal\"}", "legendFormat": "Steal", "refId": "F"}
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Per-CPU Usage ($cpu)",
+      "gridPos": {"x": 0, "y": 9, "w": 24, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [
+        {"expr": "omniagent_system_cpu_usage_percpu{host=\"$host\",cpu=~\"$cpu\",mode=\"total\"}", "legendFormat": "{{cpu}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Context Switches/s",
+      "gridPos": {"x": 0, "y": 18, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "targets": [{"expr": "rate(omniagent_system_cpu_context_switches_total{host=\"$host\"}[5m])", "legendFormat": "ctx/s", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Interrupts/s",
+      "gridPos": {"x": 12, "y": 18, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "targets": [{"expr": "rate(omniagent_system_cpu_interrupts_total{host=\"$host\"}[5m])", "legendFormat": "intr/s", "refId": "A"}]
+    },
+    {
+      "id": 5, "type": "stat", "title": "CPU Count",
+      "gridPos": {"x": 0, "y": 26, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_cpu_count{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Procs Running",
+      "gridPos": {"x": 4, "y": 26, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_procs_running{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 7, "type": "stat", "title": "Procs Blocked",
+      "gridPos": {"x": 8, "y": 26, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 5}, {"color": "red", "value": 20}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_procs_blocked{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Load Average",
+      "gridPos": {"x": 12, "y": 26, "w": 12, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "targets": [
+        {"expr": "omniagent_system_load_1{host=\"$host\"}", "legendFormat": "1m", "refId": "A"},
+        {"expr": "omniagent_system_load_5{host=\"$host\"}", "legendFormat": "5m", "refId": "B"},
+        {"expr": "omniagent_system_load_15{host=\"$host\"}", "legendFormat": "15m", "refId": "C"}
+      ]
+    }
+  ]
+}

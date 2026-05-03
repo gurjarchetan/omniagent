@@ -1,0 +1,126 @@
+{
+  "uid": "omniagent-memory",
+  "title": "OmniAgent — Memory",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_memory_total, host)",
+        "query": {"query": "label_values(omniagent_system_memory_total, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Memory Total",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_memory_total{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Memory Used",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes", "thresholds": {"steps": [{"color": "green", "value": 0}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_memory_usage{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Memory Available",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_memory_available{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "gauge", "title": "Memory Utilization",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_memory_utilization{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 5, "type": "gauge", "title": "Swap Utilization",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 40}, {"color": "red", "value": 80}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_swap_utilization{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Memory Breakdown (Stacked)",
+      "gridPos": {"x": 0, "y": 4, "w": 16, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"tooltip": {"mode": "multi"}, "stacking": {"mode": "normal"}},
+      "targets": [
+        {"expr": "omniagent_system_memory_usage{host=\"$host\"}", "legendFormat": "Used", "refId": "A"},
+        {"expr": "omniagent_system_memory_buffers{host=\"$host\"}", "legendFormat": "Buffers", "refId": "B"},
+        {"expr": "omniagent_system_memory_cached{host=\"$host\"}", "legendFormat": "Cached", "refId": "C"},
+        {"expr": "omniagent_system_memory_slab{host=\"$host\"}", "legendFormat": "Slab", "refId": "D"},
+        {"expr": "omniagent_system_memory_free{host=\"$host\"}", "legendFormat": "Free", "refId": "E"}
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Memory Utilization %",
+      "gridPos": {"x": 16, "y": 4, "w": 8, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [
+        {"expr": "omniagent_system_memory_utilization{host=\"$host\"}", "legendFormat": "RAM %", "refId": "A"},
+        {"expr": "omniagent_system_swap_utilization{host=\"$host\"}", "legendFormat": "Swap %", "refId": "B"}
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Slab Memory Detail",
+      "gridPos": {"x": 0, "y": 13, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_memory_slab_reclaimable{host=\"$host\"}", "legendFormat": "Reclaimable", "refId": "A"},
+        {"expr": "omniagent_system_memory_slab_unreclaimable{host=\"$host\"}", "legendFormat": "Unreclaimable", "refId": "B"}
+      ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Dirty & Writeback Pages",
+      "gridPos": {"x": 12, "y": 13, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_memory_dirty{host=\"$host\"}", "legendFormat": "Dirty", "refId": "A"},
+        {"expr": "omniagent_system_memory_writeback{host=\"$host\"}", "legendFormat": "Writeback", "refId": "B"}
+      ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Swap Usage",
+      "gridPos": {"x": 0, "y": 21, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_swap_usage{host=\"$host\"}", "legendFormat": "Used", "refId": "A"},
+        {"expr": "omniagent_system_swap_cached{host=\"$host\"}", "legendFormat": "Cached", "refId": "B"},
+        {"expr": "omniagent_system_swap_free{host=\"$host\"}", "legendFormat": "Free", "refId": "C"}
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Page Faults/s",
+      "gridPos": {"x": 12, "y": 21, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "targets": [
+        {"expr": "rate(omniagent_system_paging_faults{host=\"$host\"}[5m])", "legendFormat": "Minor Faults", "refId": "A"},
+        {"expr": "rate(omniagent_system_paging_major_faults{host=\"$host\"}[5m])", "legendFormat": "Major Faults", "refId": "B"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "uid": "omniagent-fs",
+  "title": "OmniAgent — Filesystem",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "60s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_filesystem_utilization, host)",
+        "query": {"query": "label_values(omniagent_system_filesystem_utilization, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      },
+      {
+        "name": "mountpoint", "label": "Mountpoint", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_system_filesystem_utilization{host=\"$host\"}, mountpoint)",
+        "query": {"query": "label_values(omniagent_system_filesystem_utilization{host=\"$host\"}, mountpoint)", "refId": "A"},
+        "refresh": 2, "multi": true, "includeAll": true, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "bargauge", "title": "Filesystem Usage % ($mountpoint)",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 75}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "horizontal"},
+      "targets": [
+        {"expr": "omniagent_system_filesystem_utilization{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "{{mountpoint}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Disk Space ($mountpoint)",
+      "gridPos": {"x": 0, "y": 8, "w": 16, "h": 9},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "omniagent_system_filesystem_usage{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "Used {{mountpoint}}", "refId": "A"},
+        {"expr": "omniagent_system_filesystem_free{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "Free {{mountpoint}}", "refId": "B"},
+        {"expr": "omniagent_system_filesystem_total{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "Total {{mountpoint}}", "refId": "C"}
+      ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Total Space",
+      "gridPos": {"x": 16, "y": 8, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "sum(omniagent_system_filesystem_total{host=\"$host\",mountpoint=~\"$mountpoint\"})", "legendFormat": "", "refId": "A"}
+      ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Used Space",
+      "gridPos": {"x": 20, "y": 8, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "sum(omniagent_system_filesystem_usage{host=\"$host\",mountpoint=~\"$mountpoint\"})", "legendFormat": "", "refId": "A"}
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Filesystem Utilization % Over Time ($mountpoint)",
+      "gridPos": {"x": 0, "y": 17, "w": 24, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [
+        {"expr": "omniagent_system_filesystem_utilization{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "{{mountpoint}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Inodes Usage ($mountpoint)",
+      "gridPos": {"x": 0, "y": 25, "w": 16, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "targets": [
+        {"expr": "omniagent_system_filesystem_inodes_usage{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "Used {{mountpoint}}", "refId": "A"},
+        {"expr": "omniagent_system_filesystem_inodes_free{host=\"$host\",mountpoint=~\"$mountpoint\"}", "legendFormat": "Free {{mountpoint}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 7, "type": "bargauge", "title": "Inode Utilization % ($mountpoint)",
+      "gridPos": {"x": 16, "y": 25, "w": 8, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 75}, {"color": "red", "value": 90}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "horizontal"},
+      "targets": [
+        {"expr": "omniagent_system_filesystem_inodes_usage{host=\"$host\",mountpoint=~\"$mountpoint\"} / omniagent_system_filesystem_inodes_total{host=\"$host\",mountpoint=~\"$mountpoint\"} * 100", "legendFormat": "{{mountpoint}}", "refId": "A"}
+      ]
+    }
+  ]
+}

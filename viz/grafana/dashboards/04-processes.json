@@ -1,0 +1,88 @@
+{
+  "uid": "omniagent-processes",
+  "title": "OmniAgent — Processes",
+  "tags": ["omniagent"],
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "host", "label": "Host", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_process_memory_usage, host)",
+        "query": {"query": "label_values(omniagent_process_memory_usage, host)", "refId": "A"},
+        "refresh": 2, "multi": false, "includeAll": false, "sort": 1
+      },
+      {
+        "name": "process", "label": "Process", "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(omniagent_process_memory_usage{host=\"$host\"}, process)",
+        "query": {"query": "label_values(omniagent_process_memory_usage{host=\"$host\"}, process)", "refId": "A"},
+        "refresh": 2, "multi": true, "includeAll": true, "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Total Processes",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_procs_total{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Running Processes",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_procs_running{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Blocked Processes",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "red", "value": 5}]}}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "omniagent_system_procs_blocked{host=\"$host\"}", "legendFormat": "", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Top CPU Consumers ($process)",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 10},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"expr": "topk(15, omniagent_process_cpu_time{host=\"$host\",process=~\"$process\"})", "legendFormat": "{{process}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Top RSS Memory Consumers ($process)",
+      "gridPos": {"x": 0, "y": 14, "w": 24, "h": 10},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "topk(15, omniagent_process_memory_usage{host=\"$host\",process=~\"$process\"})", "legendFormat": "{{process}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Virtual Memory ($process)",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [
+        {"expr": "topk(10, omniagent_process_memory_virtual{host=\"$host\",process=~\"$process\"})", "legendFormat": "{{process}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Threads per Process ($process)",
+      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "targets": [
+        {"expr": "topk(10, omniagent_process_threads{host=\"$host\",process=~\"$process\"})", "legendFormat": "{{process}}", "refId": "A"}
+      ]
+    }
+  ]
+}

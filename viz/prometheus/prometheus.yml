@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Scrape OmniAgent's native Prometheus exposition endpoint on the host.
+  # Prometheus reaches the host via the host-gateway extra_hosts entry.
+  - job_name: omniagent
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

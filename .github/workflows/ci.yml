@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libzstd-dev
+
+      - name: Build (release)
+        run: make -j$(nproc)
+
+      - name: Check binary size
+        run: |
+          ls -lh omniagent
+          size omniagent
+
+      - name: Build (debug / sanitisers)
+        run: make debug
+
+      - name: Verify binary runs
+        run: |
+          # Quick smoke test: start, wait 2 s, check metrics endpoint, kill
+          sudo timeout 10 ./omniagent -m 19100 -i 1 &
+          PID=$!
+          sleep 3
+          curl -sf http://localhost:19100/metrics | grep -c "^omniagent_" | \
+            xargs -I{} sh -c '[ {} -gt 0 ] && echo "OK: {} metric lines" || (echo "FAIL: no metrics" && exit 1)'
+          sudo kill $PID || true
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omniagent-${{ matrix.os }}
+          path: omniagent
+          retention-days: 7
+
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libzstd-dev cppcheck
+
+      - name: cppcheck
+        run: |
+          cppcheck \
+            --std=c11 \
+            --enable=warning,portability,performance \
+            --suppress=missingIncludeSystem \
+            --error-exitcode=1 \
+            -I include/ \
+            src/

@@ -1,0 +1,133 @@
+# OmniAgent Visualization Stack
+#
+# Services:
+#   omniagent   — metric collector (host PID + network namespace)
+#   prometheus  — pulls metrics from OmniAgent on the host (:9100/metrics)
+#   loki        — receives log pushes from OmniAgent on the host (:3100)
+#   grafana     — dashboard UI (http://localhost:3000, admin/admin)
+#
+# Start (builds omniagent image automatically):
+#   docker compose up -d --build
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus_data: {}
+  loki_data: {}
+  grafana_data: {}
+
+services:
+
+  # ── OmniAgent ─────────────────────────────────────────────────────────────
+  # Runs with host PID and network namespaces so it can read /proc for every
+  # process and see the real NIC stats. Pushes logs to Loki at localhost:3100
+  # and exposes Prometheus metrics on host :9100.
+  omniagent:
+    build:
+      context: ..                 # root of repo (contains Dockerfile)
+      dockerfile: Dockerfile
+    image: omniagent:latest
+    container_name: omniagent
+    restart: unless-stopped
+    # Share the host's PID namespace → /proc/<pid> covers every host process
+    pid: "host"
+    # Share the host's network namespace → accurate NIC stats and direct
+    # access to localhost:3100 (Loki) and localhost:9090 (Prometheus)
+    network_mode: host
+    volumes:
+      # Docker Engine API — required for container metrics
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Read host logs for inotify watching
+      - /var/log:/var/log:ro
+      # Docker container log directory
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # cgroup filesystem (optional, for future cgroup v2 metrics)
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command:
+      - "-L"
+      - "localhost"
+      - "-Q"
+      - "3100"
+      - "-m"
+      - "9100"
+      - "-i"
+      - "15"
+    environment:
+      # ── Feature toggles (set to 0 to disable a component entirely) ──────
+      - OAGENT_ENABLE_METRICS=1   # host + container metrics + /metrics endpoint
+      - OAGENT_ENABLE_LOGS=1      # inotify log file collection → Loki
+      - OAGENT_ENABLE_OTLP=1      # OTLP/HTTP receiver on :4318
+      # ── Log filtering (fnmatch patterns, comma-separated) ───────────────
+      # Only watch files matching these patterns (empty = all files):
+      # - OAGENT_LOG_INCLUDE=*.log,syslog,kern.log,auth.log
+      # Skip files matching these patterns:
+      # - OAGENT_LOG_EXCLUDE=*.gz,*.bz2,*.zip,*.tar,*.1
+      # ── Where to push logs ──────────────────────────────────────────────
+      # Override Loki endpoint (CLI flags -L -Q take precedence):
+      # - OAGENT_LOKI_HOST=localhost
+      # - OAGENT_LOKI_PORT=3100
+      # ── Other config overrides ──────────────────────────────────────────
+      # - OAGENT_METRICS_PORT=9100
+      # - OAGENT_SCRAPE_INTERVAL=15
+      # - OAGENT_LOG_DIRS=/app/logs:/srv/logs
+      # - OAGENT_DEBUG=1
+    depends_on:
+      - loki
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+    # Allows Prometheus to reach OmniAgent's /metrics endpoint on the host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ── Loki (log storage) ───────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.7
+    container_name: loki
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_EXPLORE_ENABLED=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki

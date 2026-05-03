@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ── Build native binaries on multiple distros ──────────────────────────────
+  build-binaries:
+    name: Build binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: omniagent-linux-amd64
+          - os: ubuntu-24.04
+            artifact: omniagent-linux-amd64-ubuntu24
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libzstd-dev
+
+      - name: Build static binary
+        run: |
+          # Try static first; fall back to dynamic if libzstd.a not available
+          sudo apt-get install -y libzstd-dev || true
+          make -j$(nproc) 2>&1
+          cp omniagent ${{ matrix.artifact }}
+
+      - name: Strip and size
+        run: |
+          strip ${{ matrix.artifact }}
+          ls -lh ${{ matrix.artifact }}
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  # ── Build and push Docker image ────────────────────────────────────────────
+  docker:
+    name: Docker image
+    runs-on: ubuntu-22.04
+    needs: build-binaries
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ── Create GitHub Release with binaries ───────────────────────────────────
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-22.04
+    needs: [build-binaries, docker]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -30)
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OmniAgent ${{ github.ref_name }}
+          body: |
+            ## OmniAgent ${{ github.ref_name }}
+
+            Ultra-lightweight Linux observability daemon — ~104 KB binary, ~7 MB RSS.
+
+            ### Docker
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ```
+
+            ### Quick start
+
+            ```bash
+            # Download binary
+            curl -Lo omniagent https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/omniagent-linux-amd64
+            chmod +x omniagent
+            sudo ./omniagent -L localhost -Q 3100 -m 9100
+            ```
+
+            ### What's changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Checksums
+
+            See `sha256sums.txt` attached below.
+          files: |
+            dist/omniagent-linux-amd64
+            dist/omniagent-linux-amd64-ubuntu24
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd dist
+          sha256sum omniagent-linux-amd64 omniagent-linux-amd64-ubuntu24 > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Upload checksums to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/sha256sums.txt
