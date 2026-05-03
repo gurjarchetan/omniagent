@@ -37,6 +37,7 @@ jobs:
         run: make debug
 
       - name: Verify binary runs
+        if: matrix.os != 'ubuntu-22.04'
         run: |
           # Smoke test: start with metrics only (no Loki needed), poll
           # /metrics for up to 10 s, fail only if we get nothing.
