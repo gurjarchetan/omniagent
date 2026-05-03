@@ -573,7 +573,10 @@ static void scrape_filesystems(void)
             if (strcmp(seen[i], mountpoint) == 0) { dup = 1; break; }
         }
         if (dup) continue;
-        if (nseen < MAX_MOUNTS) SAFE_STRNCPY(seen[nseen++], mountpoint, 128);
+        if (nseen < MAX_MOUNTS) {
+            SAFE_STRNCPY(seen[nseen], mountpoint, 128);
+            nseen++;
+        }
 
         struct statvfs st;
         if (statvfs(mountpoint, &st) != 0) continue;

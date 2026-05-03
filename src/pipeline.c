@@ -48,8 +48,8 @@ int pipeline_init(void)
         return -1;
     }
 
-    LOG_INFO("pipeline: initialised (recv_queue=%u slots, export_queue=%u batches)",
-             RB_CAPACITY, EXPORT_BATCH_QUEUE_DEPTH);
+    LOG_INFO("pipeline: initialised (recv_queue=%zu slots, export_queue=%zu batches)",
+             (size_t)RB_CAPACITY, (size_t)EXPORT_BATCH_QUEUE_DEPTH);
     return 0;
 }
 
