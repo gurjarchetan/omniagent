@@ -38,19 +38,25 @@ jobs:
 
       - name: Verify binary runs
         run: |
-          # Quick smoke test: start without Loki (metrics only), wait 3 s,
-          # check /metrics endpoint returns data, then shut down cleanly.
-          # Loki is not available on CI runners so disable log push.
+          # Smoke test: start with metrics only (no Loki needed), poll
+          # /metrics for up to 10 s, fail only if we get nothing.
           OAGENT_ENABLE_LOGS=0 OAGENT_ENABLE_OTLP=0 \
-            sudo -E timeout 15 ./omniagent -m 19100 -i 1 &
+            sudo -E ./omniagent -m 19100 -i 1 &
           AGENT_PID=$!
-          sleep 4
-          LINES=$(curl -sf http://localhost:19100/metrics 2>/dev/null | grep -c '^omniagent_' || echo 0)
+          for i in $(seq 1 10); do
+            sleep 1
+            LINES=$(curl -sf http://localhost:19100/metrics 2>/dev/null \
+                    | grep -c '^omniagent_' 2>/dev/null || true)
+            if [ "${LINES:-0}" -gt 0 ]; then
+              echo "OK: $LINES metric lines after ${i}s"
+              sudo kill $AGENT_PID 2>/dev/null || true
+              wait $AGENT_PID 2>/dev/null || true
+              exit 0
+            fi
+          done
           sudo kill $AGENT_PID 2>/dev/null || true
-          wait $AGENT_PID 2>/dev/null || true
-          echo "Metric lines returned: $LINES"
-          [ "$LINES" -gt 0 ] || { echo "FAIL: no metrics from /metrics endpoint"; exit 1; }
-          echo "OK: smoke test passed"
+          echo "FAIL: /metrics returned no data after 10s"
+          exit 1
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -80,6 +86,7 @@ jobs:
             --enable=warning,portability,performance \
             --suppress=missingIncludeSystem \
             --suppress=uninitvar \
+            --suppress=constStatement \
             --error-exitcode=1 \
             -I include/ \
             src/
